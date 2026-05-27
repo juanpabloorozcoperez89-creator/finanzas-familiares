@@ -8,7 +8,7 @@ from datetime import date
 
 from helpers.sheets import get_plan, get_config, update_pago_real
 from helpers.calc import calcular_saldo_actual_tarjeta
-from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly
+from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html
 
 
 st.set_page_config(
@@ -176,7 +176,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-timeline_html = '<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;">'
+# Construir todo el HTML en una sola línea (sin saltos de línea internos)
+# Esto evita que el parser de Streamlit confunda HTML con markdown.
+timeline_parts = ['<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;">']
+
 for i, (_, row) in enumerate(plan.iterrows()):
     is_paid = pd.notna(row["pago_real"])
     is_last = i == len(plan) - 1
@@ -201,41 +204,31 @@ for i, (_, row) in enumerate(plan.iterrows()):
         status = "Pendiente"
         status_color = COLORS["ink_mute"]
 
-    pago_real_str = f"<span style='color: var(--ink-mute);'>Real: {fmt_q(row['pago_real'])}</span>" if is_paid else ""
-    border = "" if is_last else "border-bottom: 1px solid var(--border);"
+    border_css = "" if is_last else "border-bottom:1px solid var(--border);"
+    pago_real_extra = f' · <span style="color:var(--ink-mute);">Real: {fmt_q(row["pago_real"])}</span>' if is_paid else ''
 
-    timeline_html += f"""
-    <div style="padding: 1.2rem 1.4rem; display: flex; align-items: center; gap: 1.2rem; {border}">
-        <div style="width: 38px; height: 38px; border-radius: 50%; background: {bullet_bg};
-                    color: {bullet_color}; display: flex; align-items: center; justify-content: center;
-                    font-weight: 700; font-size: 1.1rem; flex-shrink: 0;
-                    border: 2px solid {bullet_color};">
-            {bullet_icon}
-        </div>
-        <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.2rem; flex-wrap: wrap;">
-                <span style="font-family: 'Fraunces', serif; font-size: 1.1rem; font-weight: 500;">{row['mes_label']}</span>
-                <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: {status_color}; font-weight: 500;">
-                    {status}
-                </span>
-            </div>
-            <div style="font-size: 0.82rem; color: var(--ink-mute); display: flex; gap: 0.6rem; flex-wrap: wrap;">
-                <span>Saldo inicial: {fmt_q(row['saldo_inicial_plan'])}</span>
-                {f'<span>·</span>{pago_real_str}' if is_paid else ''}
-            </div>
-        </div>
-        <div style="text-align: right;">
-            <div style="font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 500; color: var(--ink);">
-                {fmt_q(row['pago_planeado'])}
-            </div>
-            <div style="font-size: 0.72rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.06em;">
-                cuota #{int(row['mes_num'])}
-            </div>
-        </div>
-    </div>
-    """
-timeline_html += '</div>'
-st.markdown(timeline_html, unsafe_allow_html=True)
+    # Construir cada fila SIN saltos de línea internos para evitar parsing como markdown
+    row_html = (
+        f'<div style="padding:1.2rem 1.4rem;display:flex;align-items:center;gap:1.2rem;{border_css}">'
+        f'<div style="width:38px;height:38px;border-radius:50%;background:{bullet_bg};color:{bullet_color};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;flex-shrink:0;border:2px solid {bullet_color};">{bullet_icon}</div>'
+        f'<div style="flex:1;min-width:0;">'
+        f'<div style="display:flex;align-items:baseline;gap:0.6rem;margin-bottom:0.2rem;flex-wrap:wrap;">'
+        f'<span style="font-family:Fraunces,serif;font-size:1.1rem;font-weight:500;">{row["mes_label"]}</span>'
+        f'<span style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:{status_color};font-weight:500;">{status}</span>'
+        f'</div>'
+        f'<div style="font-size:0.82rem;color:var(--ink-mute);">Saldo inicial: {fmt_q(row["saldo_inicial_plan"])}{pago_real_extra}</div>'
+        f'</div>'
+        f'<div style="text-align:right;">'
+        f'<div style="font-family:Fraunces,serif;font-size:1.3rem;font-weight:500;color:var(--ink);">{fmt_q(row["pago_planeado"])}</div>'
+        f'<div style="font-size:0.72rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.06em;">cuota #{int(row["mes_num"])}</div>'
+        f'</div>'
+        f'</div>'
+    )
+    timeline_parts.append(row_html)
+
+timeline_parts.append('</div>')
+timeline_html = ''.join(timeline_parts)
+render_html(timeline_html)
 
 
 st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
