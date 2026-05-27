@@ -14,14 +14,14 @@ from helpers.calc import (
     resumen_mes, gastos_hormiga, egresos_por_categoria,
     calcular_saldo_actual_tarjeta, mes_actual_dt, nombre_mes_es,
 )
-from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly
+from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html
 
 
 st.set_page_config(
     page_title="Finanzas · Pablo & Maite",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="auto",
 )
 apply_theme()
 
@@ -219,9 +219,10 @@ with cA:
                     </div>
                 </div>
             </div>
-            {bars_html}
         </div>
         """, unsafe_allow_html=True)
+        # Render bars separately to avoid markdown parser confusion
+        render_html(bars_html)
 
 
 with cB:
@@ -341,6 +342,6 @@ else:
         </div>
         """
 
-    st.markdown(f'<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;">{rows_html}</div>', unsafe_allow_html=True)
+    render_html(f'<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;">{rows_html}</div>')
 
 st.markdown("<div style='height: 3rem'></div>", unsafe_allow_html=True)
