@@ -1,4 +1,3 @@
-
 """
 Registrar un nuevo movimiento (ingreso o egreso).
 Diseñado para uso rápido desde el celular.
