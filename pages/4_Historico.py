@@ -8,7 +8,7 @@ import plotly.express as px
 
 from helpers.sheets import get_transacciones
 from helpers.calc import historico_mensual
-from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly
+from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html
 
 
 st.set_page_config(
@@ -148,7 +148,7 @@ for _, row in hist.iterrows():
     </div>
     """
 rows_html += '</div>'
-st.markdown(rows_html, unsafe_allow_html=True)
+render_html(rows_html)
 
 
 st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
