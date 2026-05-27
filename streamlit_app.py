@@ -54,7 +54,10 @@ def main():
         plan = get_plan()
         config = get_config()
     except Exception as e:
-        st.error(f"Error conectando a Google Sheets: {e}")
+        st.error(f"**Error conectando a Google Sheets**\n\n**{type(e).__name__}:** {e}")
+        with st.expander("Ver detalles técnicos"):
+            import traceback
+            st.code(traceback.format_exc())
         st.info("Revisa que `secrets.toml` esté bien configurado y que el sheet esté compartido con la service account.")
         return
 
