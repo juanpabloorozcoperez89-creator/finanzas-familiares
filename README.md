@@ -1,183 +1,160 @@
-"""
-Plan de pago de la tarjeta de crédito.
-Muestra el calendario de 7 meses y permite marcar pagos reales.
-"""
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-from datetime import date
+[README.md](https://github.com/user-attachments/files/28312816/README.md)
+# Finanzas Familiares · Pablo & Maite
 
-from helpers.sheets import get_plan, get_config, update_pago_real
-from helpers.calc import calcular_saldo_actual_tarjeta
+App de Streamlit para registrar ingresos/egresos familiares, controlar el plan de pago de la tarjeta de crédito y detectar gastos hormiga.
 
+## Stack
 
-st.set_page_config(page_title="Plan Tarjeta", page_icon="💳", layout="wide")
-st.title("💳 Plan de Pago Tarjeta")
+- Streamlit (frontend)
+- Google Sheets (backend, via gspread)
+- Streamlit Cloud (hosting)
 
+## Setup inicial
 
-def fmt_q(v):
-    if pd.isna(v):
-        return "—"
-    return f"Q {v:,.2f}"
+### 1. Crear el Google Sheet
 
+Crea un Google Sheet nuevo llamado **"Finanzas Familiares"** y agrega estas 4 hojas (pestañas) con sus encabezados exactos:
 
-try:
-    plan = get_plan()
-    config = get_config()
-except Exception as e:
-    st.error(f"Error: {e}")
-    st.stop()
+**Hoja: `Transacciones`**
+```
+fecha | tipo | persona | categoria | descripcion | monto | es_hormiga | timestamp
+```
 
-if plan.empty:
-    st.warning("La hoja `Plan_Tarjeta` está vacía. Revisa el README para configurarla.")
-    st.stop()
+**Hoja: `Categorias`**
+```
+nombre | tipo | umbral_hormiga | activa
+```
 
+Llena la hoja `Categorias` con estos valores iniciales:
 
-saldo_inicial = config.get("saldo_inicial_tarjeta", 39671.28)
-info = calcular_saldo_actual_tarjeta(plan, saldo_inicial)
+| nombre | tipo | umbral_hormiga | activa |
+|---|---|---|---|
+| Salario | INGRESO | | TRUE |
+| Bono | INGRESO | | TRUE |
+| Otros Ingresos | INGRESO | | TRUE |
+| Renta casa | EGRESO_FIJO | | TRUE |
+| Pago Tarjeta | EGRESO_FIJO | | TRUE |
+| Supermercado | EGRESO_FIJO | | TRUE |
+| Gasolina | EGRESO_FIJO | | TRUE |
+| Sarita | EGRESO_FIJO | | TRUE |
+| Netflix | EGRESO_FIJO | | TRUE |
+| Claude.ai | EGRESO_FIJO | | TRUE |
+| Disney | EGRESO_FIJO | | TRUE |
+| Internet | EGRESO_FIJO | | TRUE |
+| Cell Sofi | EGRESO_FIJO | | TRUE |
+| Cell Pablo | EGRESO_FIJO | | TRUE |
+| Luz | EGRESO_FIJO | | TRUE |
+| Tia Tachy | EGRESO_FIJO | | TRUE |
+| Visacuotas Carro | EGRESO_FIJO | | TRUE |
+| IGSS | EGRESO_FIJO | | TRUE |
+| IRS | EGRESO_FIJO | | TRUE |
+| Retencion Vintage | EGRESO_FIJO | | TRUE |
+| Comida fuera | EGRESO_VARIABLE | 200 | TRUE |
+| Corte de pelo | EGRESO_VARIABLE | 200 | TRUE |
+| Carwash | EGRESO_VARIABLE | 200 | TRUE |
+| Farmacia | EGRESO_VARIABLE | 200 | TRUE |
+| Hija (gastos) | EGRESO_VARIABLE | 200 | TRUE |
+| Salud | EGRESO_VARIABLE | 200 | TRUE |
+| Transporte (Uber/taxi) | EGRESO_VARIABLE | 200 | TRUE |
+| Entretenimiento | EGRESO_VARIABLE | 200 | TRUE |
+| Ropa | EGRESO_VARIABLE | 200 | TRUE |
+| Antojo / Snack | EGRESO_VARIABLE | 200 | TRUE |
+| Regalos | EGRESO_VARIABLE | 200 | TRUE |
+| Otros | EGRESO_VARIABLE | 200 | TRUE |
 
-# ============ Métricas clave ============
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.metric("Saldo inicial", fmt_q(saldo_inicial))
-with c2:
-    st.metric("Total pagado", fmt_q(info["total_pagado"]))
-with c3:
-    st.metric("Saldo restante", fmt_q(info["saldo_actual"]))
-with c4:
-    avance = (info["total_pagado"] / saldo_inicial * 100) if saldo_inicial else 0
-    st.metric("% Avance", f"{avance:.1f}%")
+**Hoja: `Plan_Tarjeta`**
+```
+mes_num | mes_label | saldo_inicial_plan | pago_planeado | pago_real | fecha_pago_real | notas
+```
 
-st.progress(
-    min(info["total_pagado"] / saldo_inicial, 1.0) if saldo_inicial else 0,
-    text=f"Pagado {fmt_q(info['total_pagado'])} de {fmt_q(saldo_inicial)}",
-)
+Llena con el plan optimizado (7 meses):
 
-st.divider()
+| mes_num | mes_label | saldo_inicial_plan | pago_planeado | pago_real | fecha_pago_real | notas |
+|---|---|---|---|---|---|---|
+| 1 | Jun 2026 | 39671.28 | 5500.00 | | | Cuota base |
+| 2 | Jul 2026 | 35837.47 | 13000.00 | | | Bono 14 completo (Q7,500) |
+| 3 | Ago 2026 | 24342.65 | 5500.00 | | | Cuota base |
+| 4 | Sep 2026 | 19865.04 | 5500.00 | | | Cuota base |
+| 5 | Oct 2026 | 15199.37 | 5500.00 | | | Cuota base |
+| 6 | Nov 2026 | 10337.74 | 5500.00 | | | Cuota base |
+| 7 | Dic 2026 | 5271.93 | 5493.35 | | | Cierre con aguinaldo (sobra Q9,506) |
 
-# ============ Próximo pago - acción rápida ============
-if info["proximo_mes"]:
-    prox = info["proximo_mes"]
-    st.subheader(f"📅 Próxima cuota: {prox['mes_label']}")
-    cprox1, cprox2 = st.columns([2, 1])
-    with cprox1:
-        st.write(f"**Monto planeado:** {fmt_q(prox['pago_planeado'])}")
-        if prox.get('notas'):
-            st.caption(f"Nota: {prox['notas']}")
+**Hoja: `Config`**
+```
+clave | valor
+```
 
-    with cprox2:
-        with st.expander("✅ Marcar pago como realizado"):
-            with st.form(f"pago_{int(prox['mes_num'])}"):
-                pago_real = st.number_input(
-                    "Monto pagado real",
-                    value=float(prox['pago_planeado']),
-                    step=100.0,
-                    format="%.2f",
-                )
-                fecha_pago = st.date_input("Fecha de pago", value=date.today(), format="DD/MM/YYYY")
-                notas_nuevas = st.text_input("Notas (opcional)", value=prox.get('notas', ''))
-                if st.form_submit_button("Guardar pago", type="primary"):
-                    try:
-                        update_pago_real(
-                            mes_num=int(prox['mes_num']),
-                            pago_real=pago_real,
-                            fecha_pago=fecha_pago.strftime("%Y-%m-%d"),
-                            notas=notas_nuevas,
-                        )
-                        st.success("Pago registrado.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-else:
-    st.success("🎉 ¡Plan completado! Todos los pagos del plan ya están registrados.")
+| clave | valor |
+|---|---|
+| saldo_inicial_tarjeta | 39671.28 |
+| tasa_mensual | 0.0375 |
+| iva | 0.12 |
+| umbral_hormiga_default | 200 |
+| meta_ingresos_mes | 25541.40 |
 
-st.divider()
+### 2. Service Account de Google
 
-# ============ Tabla del plan ============
-st.subheader("📋 Calendario completo del plan")
+1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
+2. Crea un proyecto nuevo: `finanzas-familiares`
+3. Habilita Google Sheets API y Google Drive API
+4. Crea un Service Account, descarga el JSON de credenciales
+5. Copia el `client_email` del JSON
+6. En tu Google Sheet, comparte con ese email (permiso Editor)
 
-plan_show = plan.copy()
-plan_show["estado"] = plan_show["pago_real"].apply(
-    lambda x: "✅ Pagado" if pd.notna(x) else "⏳ Pendiente"
-)
-plan_show["pago_planeado_fmt"] = plan_show["pago_planeado"].apply(fmt_q)
-plan_show["pago_real_fmt"] = plan_show["pago_real"].apply(fmt_q)
-plan_show["saldo_inicial_fmt"] = plan_show["saldo_inicial_plan"].apply(fmt_q)
+### 3. Configurar `secrets.toml`
 
-st.dataframe(
-    plan_show[["mes_num", "mes_label", "saldo_inicial_fmt", "pago_planeado_fmt", "pago_real_fmt", "fecha_pago_real", "estado", "notas"]].rename(columns={
-        "mes_num": "#",
-        "mes_label": "Mes",
-        "saldo_inicial_fmt": "Saldo inicial",
-        "pago_planeado_fmt": "Plan",
-        "pago_real_fmt": "Real",
-        "fecha_pago_real": "Fecha real",
-        "estado": "Estado",
-        "notas": "Notas",
-    }),
-    hide_index=True,
-    use_container_width=True,
-)
+Crea `.streamlit/secrets.toml`:
 
-# ============ Gráfica: saldo proyectado vs real ============
-st.divider()
-st.subheader("📉 Evolución del saldo")
+```toml
+[gcp_service_account]
+type = "service_account"
+project_id = "tu-project-id"
+private_key_id = "..."
+private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+client_email = "..."
+client_id = "..."
+auth_uri = "https://accounts.google.com/o/oauth2/auth"
+token_uri = "https://oauth2.googleapis.com/token"
+auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
+client_x509_cert_url = "..."
 
-# Calcular saldo proyectado mes a mes
-tasa = config.get("tasa_mensual", 0.0375)
-iva = config.get("iva", 0.12)
+[sheets]
+sheet_id = "TU_GOOGLE_SHEET_ID_AQUI"
+```
 
-saldo_proyectado = [saldo_inicial]
-saldo_real = [saldo_inicial]
-labels = ["Inicio"]
-s_p = saldo_inicial
-s_r = saldo_inicial
-for _, row in plan.iterrows():
-    interes = s_p * tasa
-    iva_c = interes * iva
-    s_p = s_p + interes + iva_c - row["pago_planeado"]
-    if s_p < 0:
-        s_p = 0
-    saldo_proyectado.append(s_p)
+### 4. Deploy a Streamlit Cloud
 
-    if pd.notna(row["pago_real"]):
-        interes_r = s_r * tasa
-        iva_r = interes_r * iva
-        s_r = s_r + interes_r + iva_r - row["pago_real"]
-        if s_r < 0:
-            s_r = 0
-        saldo_real.append(s_r)
-    else:
-        saldo_real.append(None)
-    labels.append(row["mes_label"])
+1. Sube el repo a GitHub: `pabloorozco-cmd/finanzas-familiares`
+2. En [share.streamlit.io](https://share.streamlit.io), conecta el repo
+3. Pega el contenido de `secrets.toml` en Settings → Secrets
+4. Deploy
 
-fig = go.Figure()
-fig.add_trace(go.Scatter(
-    x=labels, y=saldo_proyectado, name="Saldo planeado",
-    mode="lines+markers", line=dict(color="#1F4E78", dash="dash"),
-))
-fig.add_trace(go.Scatter(
-    x=labels, y=saldo_real, name="Saldo real (según pagos hechos)",
-    mode="lines+markers", line=dict(color="#2E8B57", width=3),
-))
-fig.update_layout(
-    yaxis_title="Saldo restante (Q)",
-    height=400,
-    margin=dict(l=10, r=10, t=20, b=20),
-    hovermode="x unified",
-)
-st.plotly_chart(fig, use_container_width=True)
+## Estructura
 
-# ============ Resumen del plan ============
-with st.expander("📖 Detalle del plan optimizado"):
-    st.markdown(f"""
-    **Plan diseñado en mayo 2026 con base en:**
-    - Saldo inicial: **{fmt_q(saldo_inicial)}**
-    - Tasa de interés: **{tasa*100:.2f}% mensual** + IVA {iva*100:.0f}%
-    - Bono 14 (julio): refuerzo de Q7,500 → pago de Q13,000 en julio
-    - Aguinaldo (diciembre): pago de cierre Q5,493 (sobra Q9,506 para fin de año)
+```
+finanzas-familiares/
+├── streamlit_app.py            # Dashboard principal
+├── pages/
+│   ├── 1_➕_Registrar.py        # Formulario rápido
+│   ├── 2_💳_Plan_Tarjeta.py    # Progreso del plan
+│   ├── 3_🐜_Gastos_Hormiga.py  # Análisis hormiga
+│   ├── 4_📈_Histórico.py       # Comparativo mes a mes
+│   └── 5_⚙️_Configuración.py   # Categorías y parámetros
+├── helpers/
+│   ├── __init__.py
+│   ├── sheets.py               # CRUD Google Sheets
+│   └── calc.py                 # Cálculos: saldos, hormigas
+├── .streamlit/
+│   ├── config.toml
+│   └── secrets.toml            # NO subir a git
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
 
-    **Total a pagar en 7 meses:** Q 45,993.35
-    **Intereses + IVA totales:** ~Q 6,322
-    **Mes de liquidación:** Diciembre 2026
-    """)
+## Cómo se usa
+
+1. **Cada vez que pagas algo:** abres la app en el celular → página "➕ Registrar" → llenas 4 campos en 10 segundos
+2. **Una vez al mes:** vas a "💳 Plan Tarjeta" y marcas el pago real del mes
+3. **Cuando quieras revisar:** dashboard te dice el estado del mes en curso
+4. **Para detectar fugas:** "🐜 Gastos Hormiga" te muestra todo lo chiquito acumulado
