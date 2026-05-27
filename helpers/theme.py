@@ -409,6 +409,19 @@ def fmt_q_short(v) -> str:
     return f"Q{v:,.0f}"
 
 
+def render_html(html: str):
+    """
+    Renderiza HTML de forma segura en Streamlit.
+    Compacta el HTML para evitar que el parser de markdown interprete
+    indentaciones de 4+ espacios como bloques de código.
+    """
+    import re
+    # Eliminar saltos de línea con indentación que confunden a markdown
+    compact = re.sub(r'\n\s+', '', html)
+    compact = re.sub(r'\s{2,}', ' ', compact)
+    st.markdown(compact, unsafe_allow_html=True)
+
+
 # ============ PALETA PARA PLOTLY ============
 PLOTLY_THEME = dict(
     layout=dict(
