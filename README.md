@@ -1,5 +1,5 @@
-[README.md](https://github.com/user-attachments/files/28312816/README.md)
-# Finanzas Familiares · Pablo & Maite
+[README.md](https://github.com/user-attachments/files/28313691/README.md)
+# Finanzas Familiares · Maite & Pablo
 
 App de Streamlit para registrar ingresos/egresos familiares, controlar el plan de pago de la tarjeta de crédito y detectar gastos hormiga.
 
