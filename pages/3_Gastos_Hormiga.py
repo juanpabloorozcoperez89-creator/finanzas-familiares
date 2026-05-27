@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 
 from helpers.sheets import get_transacciones
 from helpers.calc import filtrar_mes, gastos_hormiga, mes_actual_dt, nombre_mes_es
-from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly
+from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html
 
 
 st.set_page_config(
@@ -173,7 +173,7 @@ with cB:
         </div>
         """
     rows_html += '</div>'
-    st.markdown(rows_html, unsafe_allow_html=True)
+    render_html(rows_html)
 
 
 st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
@@ -243,4 +243,4 @@ for i, (_, row) in enumerate(hormigas_sorted.iterrows()):
     </div>
     """
 rows_html += '</div>'
-st.markdown(rows_html, unsafe_allow_html=True)
+render_html(rows_html)
