@@ -72,8 +72,9 @@ def apply_theme():
 
     /* ============ Header principal de la app ============ */
     header[data-testid="stHeader"] {{
-        background: transparent !important;
-        height: 0 !important;
+        background: rgba(250, 250, 247, 0.7) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
     }}
 
     /* ============ Contenedor principal ============ */
@@ -103,6 +104,44 @@ def apply_theme():
     section[data-testid="stSidebar"] a {{
         font-size: 0.92rem !important;
         font-weight: 400 !important;
+    }}
+
+    /* Links de navegación entre páginas */
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {{
+        background: transparent !important;
+        padding-top: 1rem;
+    }}
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] ul li a {{
+        padding: 0.6rem 1rem !important;
+        border-radius: 8px !important;
+        margin: 0.15rem 0.5rem !important;
+        transition: background 0.15s ease;
+    }}
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] ul li a:hover {{
+        background: var(--accent-2) !important;
+    }}
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] ul li a span {{
+        font-family: 'Geist', sans-serif !important;
+        font-weight: 500 !important;
+        color: var(--ink) !important;
+    }}
+
+    /* CRÍTICO: botón de toggle del sidebar SIEMPRE visible */
+    button[data-testid="stSidebarCollapseButton"],
+    button[kind="header"],
+    [data-testid="collapsedControl"] {{
+        visibility: visible !important;
+        display: flex !important;
+        background: var(--surface) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 10px !important;
+        box-shadow: var(--shadow) !important;
+        color: var(--ink) !important;
+        z-index: 999 !important;
+    }}
+    button[data-testid="stSidebarCollapseButton"]:hover,
+    [data-testid="collapsedControl"]:hover {{
+        background: var(--accent-2) !important;
     }}
 
     /* ============ Métricas (st.metric) ============ */
@@ -291,7 +330,10 @@ def apply_theme():
     }}
 
     /* Quitar el botón "Deploy" y branding de Streamlit en el navbar */
-    [data-testid="stToolbar"], footer, #MainMenu {{
+    /* IMPORTANTE: NO ocultar [data-testid="stToolbar"] completo, solo ciertos hijos */
+    [data-testid="stToolbar"] > div:nth-child(2),
+    footer,
+    #MainMenu {{
         visibility: hidden;
         height: 0;
     }}
