@@ -1,6 +1,5 @@
 """
-Plan de pago de la tarjeta de crédito.
-Muestra el calendario de 7 meses y permite marcar pagos reales.
+Plan de pago tarjeta — rediseñado con timeline visual.
 """
 import streamlit as st
 import pandas as pd
@@ -9,16 +8,16 @@ from datetime import date
 
 from helpers.sheets import get_plan, get_config, update_pago_real
 from helpers.calc import calcular_saldo_actual_tarjeta
+from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly
 
 
-st.set_page_config(page_title="Plan Tarjeta", page_icon="💳", layout="wide")
-st.title("💳 Plan de Pago Tarjeta")
-
-
-def fmt_q(v):
-    if pd.isna(v):
-        return "—"
-    return f"Q {v:,.2f}"
+st.set_page_config(
+    page_title="Plan Tarjeta · Finanzas",
+    page_icon="💳",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+apply_theme()
 
 
 try:
@@ -26,60 +25,117 @@ try:
     config = get_config()
 except Exception as e:
     st.error(f"**{type(e).__name__}:** {e}")
+    import traceback
     with st.expander("Ver detalles técnicos"):
-        import traceback
         st.code(traceback.format_exc())
     st.stop()
 
 if plan.empty:
-    st.warning("La hoja `Plan_Tarjeta` está vacía. Revisa el README para configurarla.")
+    st.warning("La hoja `Plan_Tarjeta` está vacía.")
     st.stop()
 
 
 saldo_inicial = config.get("saldo_inicial_tarjeta", 39671.28)
 info = calcular_saldo_actual_tarjeta(plan, saldo_inicial)
+avance = (info["total_pagado"] / saldo_inicial * 100) if saldo_inicial else 0
 
-# ============ Métricas clave ============
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.metric("Saldo inicial", fmt_q(saldo_inicial))
-with c2:
-    st.metric("Total pagado", fmt_q(info["total_pagado"]))
-with c3:
-    st.metric("Saldo restante", fmt_q(info["saldo_actual"]))
-with c4:
-    avance = (info["total_pagado"] / saldo_inicial * 100) if saldo_inicial else 0
-    st.metric("% Avance", f"{avance:.1f}%")
 
-st.progress(
-    min(info["total_pagado"] / saldo_inicial, 1.0) if saldo_inicial else 0,
-    text=f"Pagado {fmt_q(info['total_pagado'])} de {fmt_q(saldo_inicial)}",
+hero(
+    eyebrow="💳 Plan de pago",
+    title="Tarjeta de crédito",
+    subtitle="7 meses para quedar libre. Cada cuota cuenta.",
 )
 
-st.divider()
 
-# ============ Próximo pago - acción rápida ============
+# ============ HERO CARD oscura con el saldo ============
+proximo_html = f'<div style="font-size: 0.95rem; opacity: 0.85;"><b>Próxima cuota:</b> {fmt_q(info["proximo_mes"]["pago_planeado"])} · {info["proximo_mes"]["mes_label"]}</div>' if info['proximo_mes'] else '<div style="font-size: 0.95rem; opacity: 0.85;">🎉 Plan completado</div>'
+
+st.markdown(f"""
+<div style="background: linear-gradient(135deg, {COLORS['ink']} 0%, #1a3530 100%);
+            border-radius: 20px; padding: 2.5rem; color: white;
+            box-shadow: 0 4px 24px rgba(15,31,28,0.12);
+            position: relative; overflow: hidden;">
+    <div style="position: absolute; top: -60px; right: -60px; width: 250px; height: 250px;
+                background: radial-gradient(circle, rgba(10,110,78,0.35) 0%, transparent 70%);
+                border-radius: 50%;"></div>
+    <div style="position: absolute; bottom: -80px; left: -60px; width: 220px; height: 220px;
+                background: radial-gradient(circle, rgba(10,110,78,0.15) 0%, transparent 70%);
+                border-radius: 50%;"></div>
+    <div style="position: relative;">
+        <div style="font-family: 'Geist Mono', monospace; font-size: 0.7rem;
+                    text-transform: uppercase; letter-spacing: 0.16em;
+                    color: {COLORS['accent_2']}; opacity: 0.6; margin-bottom: 0.6rem;">
+            Saldo restante
+        </div>
+        <div style="font-family: 'Fraunces', serif; font-size: clamp(2.5rem, 7vw, 3.8rem);
+                    font-weight: 500; line-height: 1; letter-spacing: -0.025em; margin-bottom: 1.5rem;">
+            {fmt_q(info['saldo_actual'])}
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 2.5rem; margin-bottom: 1.5rem;">
+            <div>
+                <div style="font-family: 'Geist Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5; margin-bottom: 0.3rem;">Pagado</div>
+                <div style="font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 500;">{fmt_q(info['total_pagado'])}</div>
+            </div>
+            <div>
+                <div style="font-family: 'Geist Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5; margin-bottom: 0.3rem;">Avance</div>
+                <div style="font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 500; color: {COLORS['accent_2']};">{avance:.1f}%</div>
+            </div>
+            <div>
+                <div style="font-family: 'Geist Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5; margin-bottom: 0.3rem;">Cuotas</div>
+                <div style="font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 500;">{info['meses_pagados']}/{len(plan)}</div>
+            </div>
+        </div>
+        <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 100px; overflow: hidden; margin-bottom: 1rem;">
+            <div style="background: linear-gradient(90deg, {COLORS['accent']} 0%, #2ba078 100%); height: 100%;
+                        width: {min(avance, 100)}%; border-radius: 100px;
+                        transition: width 0.5s ease;"></div>
+        </div>
+        {proximo_html}
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
+
+
+# ============ ACCIÓN: marcar pago ============
 if info["proximo_mes"]:
     prox = info["proximo_mes"]
-    st.subheader(f"📅 Próxima cuota: {prox['mes_label']}")
-    cprox1, cprox2 = st.columns([2, 1])
-    with cprox1:
-        st.write(f"**Monto planeado:** {fmt_q(prox['pago_planeado'])}")
-        if prox.get('notas'):
-            st.caption(f"Nota: {prox['notas']}")
+    cL, cR = st.columns([1.2, 1])
+    with cL:
+        st.markdown(f"""
+        <div style="background: var(--surface); border: 1px solid var(--border);
+                    border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow);">
+            <div style="font-family: 'Geist Mono', monospace; font-size: 0.7rem;
+                        text-transform: uppercase; letter-spacing: 0.14em;
+                        color: var(--accent); margin-bottom: 0.6rem;">
+                Acción pendiente
+            </div>
+            <h3 style="margin: 0 0 0.4rem; font-size: 1.3rem;">Pago de {prox['mes_label']}</h3>
+            <div style="font-size: 0.92rem; color: var(--ink-soft); margin-bottom: 1rem;">
+                {prox.get('notas', 'Cuota base mensual')}
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <span style="color: var(--ink-mute); font-size: 0.85rem;">Monto planeado</span>
+                <span style="font-family: 'Fraunces', serif; font-size: 1.8rem; font-weight: 500; color: var(--ink);">
+                    {fmt_q(prox['pago_planeado'])}
+                </span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with cprox2:
-        with st.expander("✅ Marcar pago como realizado"):
+    with cR:
+        with st.expander(f"✓ Marcar como pagado", expanded=False):
             with st.form(f"pago_{int(prox['mes_num'])}"):
                 pago_real = st.number_input(
                     "Monto pagado real",
                     value=float(prox['pago_planeado']),
-                    step=100.0,
-                    format="%.2f",
+                    step=100.0, format="%.2f",
                 )
                 fecha_pago = st.date_input("Fecha de pago", value=date.today(), format="DD/MM/YYYY")
                 notas_nuevas = st.text_input("Notas (opcional)", value=prox.get('notas', ''))
-                if st.form_submit_button("Guardar pago", type="primary"):
+                if st.form_submit_button("Confirmar pago", type="primary", use_container_width=True):
                     try:
                         update_pago_real(
                             mes_num=int(prox['mes_num']),
@@ -90,46 +146,113 @@ if info["proximo_mes"]:
                         st.success("Pago registrado.")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"**{type(e).__name__}:** {e}")
-    with st.expander("Ver detalles técnicos"):
-        import traceback
-        st.code(traceback.format_exc())
+                        st.error(f"{type(e).__name__}: {e}")
 else:
-    st.success("🎉 ¡Plan completado! Todos los pagos del plan ya están registrados.")
+    st.markdown("""
+    <div style="background: var(--accent-2); border: 1px solid rgba(10,110,78,0.2);
+                border-radius: 14px; padding: 1.5rem; text-align: center;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎉</div>
+        <h3 style="margin: 0; color: var(--accent);">¡Felicidades, plan completado!</h3>
+        <p style="margin: 0.5rem 0 0; color: var(--ink-soft);">
+            Liberaron la deuda de la tarjeta. Tiempo de empezar a ahorrar.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-st.divider()
 
-# ============ Tabla del plan ============
-st.subheader("📋 Calendario completo del plan")
+st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
 
-plan_show = plan.copy()
-plan_show["estado"] = plan_show["pago_real"].apply(
-    lambda x: "✅ Pagado" if pd.notna(x) else "⏳ Pendiente"
-)
-plan_show["pago_planeado_fmt"] = plan_show["pago_planeado"].apply(fmt_q)
-plan_show["pago_real_fmt"] = plan_show["pago_real"].apply(fmt_q)
-plan_show["saldo_inicial_fmt"] = plan_show["saldo_inicial_plan"].apply(fmt_q)
 
-st.dataframe(
-    plan_show[["mes_num", "mes_label", "saldo_inicial_fmt", "pago_planeado_fmt", "pago_real_fmt", "fecha_pago_real", "estado", "notas"]].rename(columns={
-        "mes_num": "#",
-        "mes_label": "Mes",
-        "saldo_inicial_fmt": "Saldo inicial",
-        "pago_planeado_fmt": "Plan",
-        "pago_real_fmt": "Real",
-        "fecha_pago_real": "Fecha real",
-        "estado": "Estado",
-        "notas": "Notas",
-    }),
-    hide_index=True,
-    use_container_width=True,
-)
+# ============ TIMELINE de cuotas ============
+st.markdown("""
+<div style="margin-bottom: 1.2rem;">
+    <div style="font-family: 'Geist Mono', monospace; font-size: 0.72rem;
+                text-transform: uppercase; letter-spacing: 0.14em;
+                color: var(--accent); margin-bottom: 0.4rem;">
+        Calendario
+    </div>
+    <h3 style="margin: 0; font-size: 1.3rem;">7 meses al cero</h3>
+</div>
+""", unsafe_allow_html=True)
 
-# ============ Gráfica: saldo proyectado vs real ============
-st.divider()
-st.subheader("📉 Evolución del saldo")
 
-# Calcular saldo proyectado mes a mes
+timeline_html = '<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;">'
+for i, (_, row) in enumerate(plan.iterrows()):
+    is_paid = pd.notna(row["pago_real"])
+    is_last = i == len(plan) - 1
+    is_next = info["proximo_mes"] is not None and int(row["mes_num"]) == int(info["proximo_mes"]["mes_num"])
+
+    if is_paid:
+        bullet_color = COLORS["accent"]
+        bullet_bg = COLORS["accent_2"]
+        bullet_icon = "✓"
+        status = f"Pagado · {row['fecha_pago_real']}"
+        status_color = COLORS["accent"]
+    elif is_next:
+        bullet_color = COLORS["warn"]
+        bullet_bg = COLORS["warn_soft"]
+        bullet_icon = "•"
+        status = "Próximo pago"
+        status_color = COLORS["warn"]
+    else:
+        bullet_color = COLORS["ink_mute"]
+        bullet_bg = "#F5F2EC"
+        bullet_icon = "○"
+        status = "Pendiente"
+        status_color = COLORS["ink_mute"]
+
+    pago_real_str = f"<span style='color: var(--ink-mute);'>Real: {fmt_q(row['pago_real'])}</span>" if is_paid else ""
+    border = "" if is_last else "border-bottom: 1px solid var(--border);"
+
+    timeline_html += f"""
+    <div style="padding: 1.2rem 1.4rem; display: flex; align-items: center; gap: 1.2rem; {border}">
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: {bullet_bg};
+                    color: {bullet_color}; display: flex; align-items: center; justify-content: center;
+                    font-weight: 700; font-size: 1.1rem; flex-shrink: 0;
+                    border: 2px solid {bullet_color};">
+            {bullet_icon}
+        </div>
+        <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.2rem; flex-wrap: wrap;">
+                <span style="font-family: 'Fraunces', serif; font-size: 1.1rem; font-weight: 500;">{row['mes_label']}</span>
+                <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: {status_color}; font-weight: 500;">
+                    {status}
+                </span>
+            </div>
+            <div style="font-size: 0.82rem; color: var(--ink-mute); display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                <span>Saldo inicial: {fmt_q(row['saldo_inicial_plan'])}</span>
+                {f'<span>·</span>{pago_real_str}' if is_paid else ''}
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 500; color: var(--ink);">
+                {fmt_q(row['pago_planeado'])}
+            </div>
+            <div style="font-size: 0.72rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.06em;">
+                cuota #{int(row['mes_num'])}
+            </div>
+        </div>
+    </div>
+    """
+timeline_html += '</div>'
+st.markdown(timeline_html, unsafe_allow_html=True)
+
+
+st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
+
+
+# ============ GRÁFICA evolución del saldo ============
+st.markdown("""
+<div style="margin-bottom: 1.2rem;">
+    <div style="font-family: 'Geist Mono', monospace; font-size: 0.72rem;
+                text-transform: uppercase; letter-spacing: 0.14em;
+                color: var(--accent); margin-bottom: 0.4rem;">
+        Proyección
+    </div>
+    <h3 style="margin: 0; font-size: 1.3rem;">Cómo bajará el saldo</h3>
+</div>
+""", unsafe_allow_html=True)
+
 tasa = config.get("tasa_mensual", 0.0375)
 iva = config.get("iva", 0.12)
 
@@ -141,49 +264,59 @@ s_r = saldo_inicial
 for _, row in plan.iterrows():
     interes = s_p * tasa
     iva_c = interes * iva
-    s_p = s_p + interes + iva_c - row["pago_planeado"]
-    if s_p < 0:
-        s_p = 0
+    s_p = max(0, s_p + interes + iva_c - row["pago_planeado"])
     saldo_proyectado.append(s_p)
 
     if pd.notna(row["pago_real"]):
         interes_r = s_r * tasa
         iva_r = interes_r * iva
-        s_r = s_r + interes_r + iva_r - row["pago_real"]
-        if s_r < 0:
-            s_r = 0
+        s_r = max(0, s_r + interes_r + iva_r - row["pago_real"])
         saldo_real.append(s_r)
     else:
         saldo_real.append(None)
     labels.append(row["mes_label"])
 
+st.markdown('<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow);">', unsafe_allow_html=True)
+
 fig = go.Figure()
 fig.add_trace(go.Scatter(
-    x=labels, y=saldo_proyectado, name="Saldo planeado",
-    mode="lines+markers", line=dict(color="#1F4E78", dash="dash"),
+    x=labels, y=saldo_proyectado, name="Plan",
+    mode="lines+markers",
+    line=dict(color=COLORS["ink_mute"], dash="dot", width=2),
+    marker=dict(size=6),
+    fill="tozeroy", fillcolor="rgba(139,152,147,0.06)",
+    hovertemplate="<b>%{x}</b><br>Plan: Q%{y:,.0f}<extra></extra>",
 ))
 fig.add_trace(go.Scatter(
-    x=labels, y=saldo_real, name="Saldo real (según pagos hechos)",
-    mode="lines+markers", line=dict(color="#2E8B57", width=3),
+    x=labels, y=saldo_real, name="Real",
+    mode="lines+markers",
+    line=dict(color=COLORS["accent"], width=3),
+    marker=dict(size=8, line=dict(width=2, color="white")),
+    hovertemplate="<b>%{x}</b><br>Real: Q%{y:,.0f}<extra></extra>",
 ))
+fig = style_plotly(fig)
 fig.update_layout(
-    yaxis_title="Saldo restante (Q)",
-    height=400,
-    margin=dict(l=10, r=10, t=20, b=20),
+    height=340,
+    margin=dict(l=10, r=10, t=10, b=10),
+    showlegend=True,
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
     hovermode="x unified",
+    yaxis=dict(tickprefix="Q", tickformat=",.0f"),
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+st.markdown('</div>', unsafe_allow_html=True)
 
-# ============ Resumen del plan ============
-with st.expander("📖 Detalle del plan optimizado"):
+
+st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
+
+with st.expander("Detalles del plan optimizado"):
     st.markdown(f"""
-    **Plan diseñado en mayo 2026 con base en:**
-    - Saldo inicial: **{fmt_q(saldo_inicial)}**
-    - Tasa de interés: **{tasa*100:.2f}% mensual** + IVA {iva*100:.0f}%
-    - Bono 14 (julio): refuerzo de Q7,500 → pago de Q13,000 en julio
-    - Aguinaldo (diciembre): pago de cierre Q5,493 (sobra Q9,506 para fin de año)
+    **Diseñado en mayo 2026 con base en:**
 
-    **Total a pagar en 7 meses:** Q 45,993.35
-    **Intereses + IVA totales:** ~Q 6,322
-    **Mes de liquidación:** Diciembre 2026
+    · Saldo inicial: **{fmt_q(saldo_inicial)}**
+    · Tasa de interés: **{tasa*100:.2f}% mensual** + IVA {iva*100:.0f}%
+    · **Julio 2026:** refuerzo con bono 14 (Q7,500) → pago de Q13,000
+    · **Diciembre 2026:** cierre con aguinaldo (Q5,493) — sobra Q9,506 para fin de año
+
+    **Total a pagar:** ~Q 45,993 · **Intereses:** ~Q 6,322 · **Liquidación:** diciembre 2026
     """)
