@@ -1,0 +1,124 @@
+"""
+Página de diagnóstico — corre todos los checks de conectividad
+y muestra exactamente dónde está fallando la app.
+"""
+import streamlit as st
+import traceback
+
+st.set_page_config(page_title="Diagnóstico", page_icon="🔧", layout="wide")
+st.title("🔧 Diagnóstico de conexión")
+st.caption("Esta página te dice EXACTAMENTE qué está fallando.")
+
+# ============ CHECK 1: secrets.toml ============
+st.subheader("✅ Check 1: Secrets configurados")
+try:
+    sa = st.secrets["gcp_service_account"]
+    sheet_id = st.secrets["sheets"]["sheet_id"]
+    st.success("Secrets encontrados.")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"**Project ID:** `{sa.get('project_id', 'NO DEFINIDO')}`")
+        st.write(f"**Client email:** `{sa.get('client_email', 'NO DEFINIDO')}`")
+    with col2:
+        st.write(f"**Sheet ID:** `{sheet_id}`")
+        st.write(f"**Private key:** `{'configurada (' + str(len(sa.get('private_key', ''))) + ' chars)' if sa.get('private_key') else '❌ NO DEFINIDA'}`")
+except Exception as e:
+    st.error(f"❌ FALLA EN SECRETS: {type(e).__name__}: {e}")
+    st.code(traceback.format_exc())
+    st.stop()
+
+# ============ CHECK 2: Autenticación ============
+st.subheader("✅ Check 2: Autenticación Google")
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets",
+              "https://www.googleapis.com/auth/drive"]
+    creds_dict = dict(st.secrets["gcp_service_account"])
+    creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    client = gspread.authorize(creds)
+    st.success("Autenticación exitosa con Google.")
+except Exception as e:
+    st.error(f"❌ FALLA AUTENTICANDO: {type(e).__name__}: {e}")
+    st.code(traceback.format_exc())
+    st.info("**Causas comunes:**\n- `private_key` mal formateada en secrets (faltan \\n o están como saltos reales)\n- Service account eliminada o deshabilitada\n- APIs no habilitadas (Sheets + Drive)")
+    st.stop()
+
+# ============ CHECK 3: Abrir el Sheet ============
+st.subheader("✅ Check 3: Acceso al Google Sheet")
+try:
+    sheet = client.open_by_key(sheet_id)
+    st.success(f"Sheet abierto: **{sheet.title}**")
+    st.write(f"URL: https://docs.google.com/spreadsheets/d/{sheet_id}/edit")
+except gspread.exceptions.APIError as e:
+    st.error(f"❌ ERROR DE API: {e}")
+    if "PERMISSION_DENIED" in str(e) or "403" in str(e):
+        st.warning(f"""
+        **El sheet existe pero la service account NO tiene permiso.**
+
+        Soluciónalo así:
+        1. Abre tu Google Sheet
+        2. Click en **Compartir** (botón azul arriba a la derecha)
+        3. Pega este email: `{sa.get('client_email')}`
+        4. Permiso: **Editor**
+        5. **Desmarca** "Notify people"
+        6. Click **Share**
+        7. Vuelve aquí y recarga la página
+        """)
+    elif "NOT_FOUND" in str(e) or "404" in str(e):
+        st.warning(f"""
+        **El Sheet ID no existe o está mal escrito.**
+
+        Tu Sheet ID actual: `{sheet_id}`
+
+        Ve a tu Google Sheet, copia la URL y verifica que el ID entre `/d/` y `/edit` coincida.
+        """)
+    else:
+        st.code(traceback.format_exc())
+    st.stop()
+except Exception as e:
+    st.error(f"❌ ERROR: {type(e).__name__}: {e}")
+    st.code(traceback.format_exc())
+    st.stop()
+
+# ============ CHECK 4: Hojas esperadas ============
+st.subheader("✅ Check 4: Pestañas requeridas")
+hojas_esperadas = ["Transacciones", "Categorias", "Plan_Tarjeta", "Config"]
+hojas_existentes = [ws.title for ws in sheet.worksheets()]
+
+col1, col2 = st.columns(2)
+with col1:
+    st.write("**Hojas que debe tener:**")
+    for h in hojas_esperadas:
+        if h in hojas_existentes:
+            st.write(f"✅ `{h}`")
+        else:
+            st.write(f"❌ `{h}` — FALTA")
+
+with col2:
+    st.write("**Hojas que tiene actualmente:**")
+    for h in hojas_existentes:
+        st.write(f"• `{h}`")
+
+faltantes = [h for h in hojas_esperadas if h not in hojas_existentes]
+if faltantes:
+    st.error(f"Faltan estas pestañas: {', '.join(faltantes)}. Créalas siguiendo el README.")
+    st.stop()
+else:
+    st.success("Todas las pestañas requeridas existen.")
+
+# ============ CHECK 5: Lectura de datos ============
+st.subheader("✅ Check 5: Lectura de datos")
+for nombre in hojas_esperadas:
+    try:
+        ws = sheet.worksheet(nombre)
+        data = ws.get_all_records()
+        st.write(f"✅ `{nombre}`: {len(data)} filas")
+        if data:
+            with st.expander(f"Ver primeras filas de {nombre}"):
+                st.json(data[:3])
+    except Exception as e:
+        st.error(f"❌ Error leyendo `{nombre}`: {type(e).__name__}: {e}")
+
+st.divider()
+st.success("🎉 **Si todos los checks pasaron, tu app debería funcionar correctamente.** Ve al Dashboard.")
