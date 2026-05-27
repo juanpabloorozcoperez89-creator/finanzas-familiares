@@ -7,7 +7,7 @@ import pandas as pd
 from helpers.sheets import (
     get_categorias, add_categoria, get_config, clear_all_caches
 )
-from helpers.theme import apply_theme, hero, fmt_q, COLORS
+from helpers.theme import apply_theme, hero, fmt_q, COLORS, render_html
 
 
 st.set_page_config(
@@ -120,7 +120,7 @@ if not cats.empty:
             </div>
             """
         chips_html += '</div>'
-        st.markdown(chips_html, unsafe_allow_html=True)
+        render_html(chips_html)
 
 
 st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
@@ -174,7 +174,7 @@ try:
         </div>
         """
     items_html += '</div>'
-    st.markdown(items_html, unsafe_allow_html=True)
+    render_html(items_html)
 except Exception as e:
     st.error(f"{type(e).__name__}: {e}")
 
