@@ -18,7 +18,10 @@ st.subheader("📁 Categorías existentes")
 try:
     cats = get_categorias()
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"**{type(e).__name__}:** {e}")
+    with st.expander("Ver detalles técnicos"):
+        import traceback
+        st.code(traceback.format_exc())
     st.stop()
 
 if not cats.empty:
@@ -62,7 +65,10 @@ with st.form("nueva_cat_manual", clear_on_submit=True):
                 st.success(f"Categoría '{nombre}' creada.")
                 st.rerun()
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"**{type(e).__name__}:** {e}")
+    with st.expander("Ver detalles técnicos"):
+        import traceback
+        st.code(traceback.format_exc())
 
 st.divider()
 
@@ -77,7 +83,10 @@ try:
     ])
     st.dataframe(config_df, hide_index=True, use_container_width=True)
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"**{type(e).__name__}:** {e}")
+    with st.expander("Ver detalles técnicos"):
+        import traceback
+        st.code(traceback.format_exc())
 
 st.divider()
 
