@@ -154,7 +154,32 @@ def get_plan() -> pd.DataFrame:
     df["saldo_inicial_plan"] = pd.to_numeric(df["saldo_inicial_plan"], errors="coerce")
     df["pago_planeado"] = pd.to_numeric(df["pago_planeado"], errors="coerce")
     df["pago_real"] = pd.to_numeric(df["pago_real"], errors="coerce")
+    df["mes_label"] = df["mes_label"].apply(_normalizar_mes_label)
     return df.sort_values("mes_num").reset_index(drop=True)
+
+
+_MESES_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+             "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
+
+def _normalizar_mes_label(val) -> str:
+    """
+    Normaliza mes_label a formato 'Mes YYYY' (ej: 'Jun 2026').
+    Google Sheets a veces auto-convierte 'Jun 2026' a fecha '2026-06-01 00:00:00';
+    esta función la regresa al formato original.
+    """
+    s = str(val).strip()
+    if not s or s.lower() in ("nan", "nat", "none"):
+        return ""
+    # Si ya viene en formato corto (ej "Jun 2026"), lo dejamos como está
+    if len(s) <= 12 and not s.startswith("20"):
+        return s
+    # Si es fecha (Google Sheets auto-convertida), formatear
+    try:
+        d = pd.to_datetime(s)
+        return f"{_MESES_ES[d.month - 1]} {d.year}"
+    except (ValueError, TypeError):
+        return s
 
 
 def update_pago_real(mes_num: int, pago_real: float, fecha_pago: str, notas: str = ""):
