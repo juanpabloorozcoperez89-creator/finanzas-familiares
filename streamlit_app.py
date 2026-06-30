@@ -103,7 +103,8 @@ st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
 # ============ PLAN TARJETA (HERO CARD) ============
 saldo_inicial = config.get("saldo_inicial_tarjeta", 37661.81)
 info = calcular_saldo_actual_tarjeta(plan, saldo_inicial)
-avance = (info["total_pagado"] / saldo_inicial * 100) if saldo_inicial else 0
+# Avance basado en capital reducido (coherente con saldo_actual del próximo mes)
+avance = ((saldo_inicial - info["saldo_actual"]) / saldo_inicial * 100) if saldo_inicial else 0
 
 proximo_html = f'<span>Próxima: {fmt_q(info["proximo_mes"]["pago_planeado"])} · {info["proximo_mes"]["mes_label"]}</span>' if info['proximo_mes'] else '<span>✓ Plan completado</span>'
 
