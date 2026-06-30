@@ -402,7 +402,7 @@ def fmt_q(v) -> str:
 
 
 def fmt_q_short(v) -> str:
-    """Formato compacto: Q39,671 sin centavos."""
+    """Formato compacto: Q30,991 sin centavos."""
     import pandas as pd
     if v is None or (isinstance(v, float) and pd.isna(v)):
         return "—"
