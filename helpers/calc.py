@@ -75,8 +75,14 @@ def historico_mensual(df: pd.DataFrame, n_meses: int = 6) -> pd.DataFrame:
 
 def calcular_saldo_actual_tarjeta(plan_df: pd.DataFrame, saldo_inicial: float) -> dict:
     """
-    Calcula el saldo proyectado actual de la tarjeta basado en pagos reales registrados.
-    Retorna saldo proyectado, mes actual del plan, pagos hechos y planeados.
+    Calcula el saldo real actual de la tarjeta.
+
+    El saldo actual = saldo_inicial_plan del próximo mes pendiente.
+    Esto refleja la realidad porque el saldo_inicial_plan de cada mes ya
+    fue calculado considerando cargos del banco (intereses + IVA + visacuota
+    + gestión) acumulados hasta ese punto.
+
+    Si todos los meses están pagados, saldo_actual = 0 (deuda cerrada).
     """
     if plan_df.empty:
         return {
@@ -95,12 +101,15 @@ def calcular_saldo_actual_tarjeta(plan_df: pd.DataFrame, saldo_inicial: float) -
     proximo = plan_df[plan_df["pago_real"].isna()]
     proximo_mes = proximo.iloc[0].to_dict() if not proximo.empty else None
 
-    saldo_actual = saldo_inicial - total_pagado
-    if saldo_actual < 0:
-        saldo_actual = 0
+    # Saldo actual = saldo_inicial_plan del próximo mes pendiente
+    # (ya incluye los cargos del banco acumulados a esa fecha)
+    if proximo_mes is not None:
+        saldo_actual = float(proximo_mes["saldo_inicial_plan"])
+    else:
+        saldo_actual = 0.0  # Todos los meses pagados
 
     return {
-        "saldo_actual": float(saldo_actual),
+        "saldo_actual": saldo_actual,
         "meses_pagados": int(meses_pagados),
         "total_pagado": float(total_pagado),
         "total_planeado": float(total_planeado),
