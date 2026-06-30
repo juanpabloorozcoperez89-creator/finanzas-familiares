@@ -101,7 +101,7 @@ st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
 
 
 # ============ PLAN TARJETA (HERO CARD) ============
-saldo_inicial = config.get("saldo_inicial_tarjeta", 30990.85)
+saldo_inicial = config.get("saldo_inicial_tarjeta", 37661.81)
 info = calcular_saldo_actual_tarjeta(plan, saldo_inicial)
 avance = (info["total_pagado"] / saldo_inicial * 100) if saldo_inicial else 0
 
