@@ -1,4 +1,4 @@
-[Uploading README.md…]()
+[README.md](https://github.com/user-attachments/files/29524288/README.md)
 # Finanzas Familiares · Maite & Pablo
 
 App de Streamlit para registrar ingresos/egresos familiares, controlar el plan de pago de la tarjeta de crédito y detectar gastos hormiga.
@@ -67,18 +67,22 @@ Llena la hoja `Categorias` con estos valores iniciales:
 mes_num | mes_label | saldo_inicial_plan | pago_planeado | pago_real | fecha_pago_real | notas
 ```
 
-Plan recalculado al 30/jun/2026 con base en datos reales verificados contra los PDFs de Banco Industrial:
+Plan recalculado al 30/jun/2026 con base en datos reales verificados contra los PDFs de Banco Industrial. Pago fijo Q5,500/mes (sin bonos):
 
 | mes_num | mes_label | saldo_inicial_plan | pago_planeado | pago_real | fecha_pago_real | notas |
 |---|---|---|---|---|---|---|
-| 1 | Jul 2026 | 30990.85 | 13000.00 | | | Bono 14 (Q7,500) + cuota base (Q5,500) |
-| 2 | Ago 2026 | 19943.80 | 5500.00 | | | Cuota base |
-| 3 | Sep 2026 | 15932.77 | 5500.00 | | | Cuota base |
-| 4 | Oct 2026 | 11753.28 | 5500.00 | | | Cuota base |
-| 5 | Nov 2026 | 7398.25 | 5500.00 | | | Cuota base |
-| 6 | Dic 2026 | 2860.31 | 3631.77 | | | Cierre con aguinaldo (sobra ~Q10,800) |
+| 1 | Jun 2026 | 37661.81 | 5500.00 | 5500.00 | 2026-06-01 | Cuota base (ya pagada) |
+| 2 | Jul 2026 | 34394.94 | 5500.00 | | | Cuota base |
+| 3 | Ago 2026 | 30990.85 | 5500.00 | | | Cuota base |
+| 4 | Sep 2026 | 27443.81 | 5500.00 | | | Cuota base |
+| 5 | Oct 2026 | 23747.78 | 5500.00 | | | Cuota base |
+| 6 | Nov 2026 | 19896.52 | 5500.00 | | | Cuota base |
+| 7 | Dic 2026 | 15883.50 | 5500.00 | | | Cuota base |
+| 8 | Ene 2027 | 11701.94 | 5500.00 | | | Cuota base |
+| 9 | Feb 2027 | 7344.75 | 5500.00 | | | Cuota base |
+| 10 | Mar 2027 | 2804.56 | 3573.68 | | | Cierre final |
 
-**Total a pagar:** Q38,631.77 · **Capital reducido:** Q30,990.85 · **Cargos del banco proyectados:** Q7,640.92
+**Total a pagar:** Q53,073.68 · **Capital reducido:** Q37,661.81 · **Cargos del banco proyectados:** Q15,411.87 · **Liquidación:** marzo 2027
 
 > ⚠️ Este plan asume que NO se logra finiquito negociado. Si Banco Industrial acepta
 > negociación de intereses con pago de contado, el plan colapsa a un solo pago y las
@@ -91,7 +95,7 @@ clave | valor
 
 | clave | valor |
 |---|---|
-| saldo_inicial_tarjeta | 30990.85 |
+| saldo_inicial_tarjeta | 37661.81 |
 | tasa_mensual | 0.0375 |
 | iva | 0.12 |
 | umbral_hormiga_default | 200 |
