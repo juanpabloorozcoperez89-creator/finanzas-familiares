@@ -37,7 +37,8 @@ if plan.empty:
 
 saldo_inicial = config.get("saldo_inicial_tarjeta", 37661.81)
 info = calcular_saldo_actual_tarjeta(plan, saldo_inicial)
-avance = (info["total_pagado"] / saldo_inicial * 100) if saldo_inicial else 0
+# Avance basado en capital reducido (coherente con saldo_actual del próximo mes)
+avance = ((saldo_inicial - info["saldo_actual"]) / saldo_inicial * 100) if saldo_inicial else 0
 
 
 hero(
