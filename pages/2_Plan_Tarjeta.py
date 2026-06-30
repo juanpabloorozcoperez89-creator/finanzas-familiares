@@ -35,7 +35,7 @@ if plan.empty:
     st.stop()
 
 
-saldo_inicial = config.get("saldo_inicial_tarjeta", 39671.28)
+saldo_inicial = config.get("saldo_inicial_tarjeta", 30990.85)
 info = calcular_saldo_actual_tarjeta(plan, saldo_inicial)
 avance = (info["total_pagado"] / saldo_inicial * 100) if saldo_inicial else 0
 
@@ -43,7 +43,7 @@ avance = (info["total_pagado"] / saldo_inicial * 100) if saldo_inicial else 0
 hero(
     eyebrow="💳 Plan de pago",
     title="Tarjeta de crédito",
-    subtitle="7 meses para quedar libre. Cada cuota cuenta.",
+    subtitle="6 meses para quedar libre. Cada cuota cuenta.",
 )
 
 
@@ -171,7 +171,7 @@ st.markdown("""
                 color: var(--accent); margin-bottom: 0.4rem;">
         Calendario
     </div>
-    <h3 style="margin: 0; font-size: 1.3rem;">7 meses al cero</h3>
+    <h3 style="margin: 0; font-size: 1.3rem;">6 meses al cero</h3>
 </div>
 """, unsafe_allow_html=True)
 
@@ -302,14 +302,19 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("<div style='height: 2rem'></div>", unsafe_allow_html=True)
 
-with st.expander("Detalles del plan optimizado"):
+with st.expander("Detalles del plan"):
     st.markdown(f"""
-    **Diseñado en mayo 2026 con base en:**
+    **Plan recalculado al 30 de junio 2026 con base en:**
 
-    · Saldo inicial: **{fmt_q(saldo_inicial)}**
-    · Tasa de interés: **{tasa*100:.2f}% mensual** + IVA {iva*100:.0f}%
-    · **Julio 2026:** refuerzo con bono 14 (Q7,500) → pago de Q13,000
-    · **Diciembre 2026:** cierre con aguinaldo (Q5,493) — sobra Q9,506 para fin de año
+    · Saldo real actual (post-pago Q5,500 del 30/05): **{fmt_q(saldo_inicial)}**
+    · Tasa de interés implícita observada en últimos 11 ciclos: **3.66% mensual** + IVA 12%
+    · Cargos mensuales del banco (intereses + IVA + visacuota + gestión): **~Q 2,300/mes**
+    · **Julio 2026:** refuerzo con bono 14 (Q7,500) → pago total de Q13,000
+    · **Diciembre 2026:** cierre con aguinaldo (Q3,632) — sobra ~Q10,800 para fin de año
 
-    **Total a pagar:** ~Q 45,993 · **Intereses:** ~Q 6,322 · **Liquidación:** diciembre 2026
+    **Total a pagar:** ~Q 38,632 · **Cargos del banco proyectados:** ~Q 7,641 · **Liquidación:** diciembre 2026
+
+    > ⚠️ Este plan asume que NO se logra finiquito negociado. Si Banco Industrial acepta
+    > el finiquito con descuento (negociación de intereses), el plan colapsa a un solo
+    > pago y la persona prestamista se cubre con cuotas más bajas.
     """)
