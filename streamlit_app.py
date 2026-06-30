@@ -73,7 +73,7 @@ hero(
 
 # ============ MÉTRICAS DEL MES ============
 resumen = resumen_mes(df, año_sel, mes_sel)
-meta_ingresos = config.get("meta_ingresos_mes", 25541.40)
+meta_ingresos = config.get("meta_ingresos_mes", 26007.95)
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
@@ -101,7 +101,7 @@ st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
 
 
 # ============ PLAN TARJETA (HERO CARD) ============
-saldo_inicial = config.get("saldo_inicial_tarjeta", 39671.28)
+saldo_inicial = config.get("saldo_inicial_tarjeta", 30990.85)
 info = calcular_saldo_actual_tarjeta(plan, saldo_inicial)
 avance = (info["total_pagado"] / saldo_inicial * 100) if saldo_inicial else 0
 
