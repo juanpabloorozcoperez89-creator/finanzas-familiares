@@ -8,13 +8,16 @@ import plotly.graph_objects as go
 from datetime import date
 
 from helpers.sheets import (
-    get_transacciones, get_plan, get_config, clear_all_caches
+    get_transacciones, get_plan, get_config, get_movs_tarjeta, clear_all_caches
 )
 from helpers.calc import (
     resumen_mes, gastos_hormiga, egresos_por_categoria,
-    calcular_saldo_actual_tarjeta, mes_actual_dt, nombre_mes_es,
+    calcular_saldo_actual_tarjeta, situacion_tarjeta, mes_actual_dt, nombre_mes_es,
+    saludo, mes_corto, fecha_larga,
 )
-from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html
+from helpers.theme import (
+    apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html, esc, alert,
+)
 
 
 st.set_page_config(
@@ -45,7 +48,7 @@ with st.sidebar:
     mes_sel = st.selectbox("Mes", options=list(range(1, 13)),
                             index=mes_actual - 1, format_func=nombre_mes_es, label_visibility="collapsed")
     st.markdown("<div style='margin: 1rem 0'></div>", unsafe_allow_html=True)
-    if st.button("↻ Refrescar datos", use_container_width=True):
+    if st.button("↻ Refrescar datos", width="stretch"):
         clear_all_caches()
         st.rerun()
 
@@ -55,6 +58,7 @@ try:
     df = get_transacciones()
     plan = get_plan()
     config = get_config()
+    movs = get_movs_tarjeta()
 except Exception as e:
     st.error(f"**Error conectando a Google Sheets**\n\n{type(e).__name__}: {e}")
     import traceback
@@ -66,7 +70,7 @@ except Exception as e:
 # ============ HERO ============
 hero(
     eyebrow=f"{nombre_mes_es(mes_sel)} {año_sel}",
-    title="Buenos días, Pablo.",
+    title=f"{saludo()}, Pablo.",
     subtitle="Aquí está cómo van las finanzas familiares este mes.",
 )
 
@@ -84,7 +88,13 @@ with c1:
         delta=f"{pct:+.1f}% vs meta" if pct is not None else None,
     )
 with c2:
-    st.metric("Egresos", fmt_q(resumen["egresos"]))
+    m_ant, a_ant = (12, año_sel - 1) if mes_sel == 1 else (mes_sel - 1, año_sel)
+    egr_ant = resumen_mes(df, a_ant, m_ant)["egresos"]
+    st.metric(
+        "Egresos", fmt_q(resumen["egresos"]),
+        delta=(f"{(resumen['egresos'] / egr_ant - 1) * 100:+.1f}% vs {nombre_mes_es(m_ant)[:3].lower()}" if egr_ant else None),
+        delta_color="inverse",
+    )
 with c3:
     diff = resumen["diferencia"]
     st.metric(
@@ -100,60 +110,69 @@ with c4:
 st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
 
 
-# ============ PLAN TARJETA (HERO CARD) ============
-saldo_inicial = config.get("saldo_inicial_tarjeta", 37661.81)
-info = calcular_saldo_actual_tarjeta(plan, saldo_inicial)
-# Avance basado en capital reducido (coherente con saldo_actual del próximo mes)
-avance = ((saldo_inicial - info["saldo_actual"]) / saldo_inicial * 100) if saldo_inicial else 0
+# ============ TARJETA (HERO CARD) ============
+pago_cfg = float(config.get("pago_mensual_tarjeta", 5500) or 5500)
+sit = situacion_tarjeta(movs, config, pago_mensual=pago_cfg)
 
-proximo_html = f'<span>Próxima: {fmt_q(info["proximo_mes"]["pago_planeado"])} · {info["proximo_mes"]["mes_label"]}</span>' if info['proximo_mes'] else '<span>✓ Plan completado</span>'
+if sit["hay_datos"]:
+    e = sit["proyeccion"]
+    saldo_card = sit["saldo"]
+    sub_saldo = f"Saldo real del banco · corte {fecha_larga(sit['corte'])}"
+    avance = max(0.0, min(100.0, sit["avance"] * 100))
+    avance_lbl = f"desde el máximo de {fmt_q_short(sit['pico'])}"
+    izq = (f"Pago mínimo {fmt_q(sit.get('pago_minimo'))} · vence {fecha_larga(sit['fecha_pago'])}"
+           if sit.get("fecha_pago") else f"Tasa real {sit['tasa']:.2%} mensual")
+    der = (f"Pagando {fmt_q_short(pago_cfg)}/mes: último pago en {mes_corto(e.fecha_liquidacion - pd.DateOffset(months=1))}"
+           if e.liquidado else "Con el pago actual la deuda no baja")
+else:
+    saldo_inicial = float(config.get("saldo_inicial_tarjeta", 0) or 0)
+    info = calcular_saldo_actual_tarjeta(plan, saldo_inicial)
+    saldo_card = info["saldo_actual"]
+    sub_saldo = "Saldo según el plan (importá tus estados de cuenta para ver el real)"
+    avance = ((saldo_inicial - info["saldo_actual"]) / saldo_inicial * 100) if saldo_inicial else 0
+    avance_lbl = "del plan"
+    izq = f"{info['meses_pagados']} de {len(plan)} cuotas pagadas"
+    der = (f"Próxima: {fmt_q(info['proximo_mes']['pago_planeado'])} · {esc(info['proximo_mes']['mes_label'])}"
+           if info["proximo_mes"] else "✓ Plan completado")
 
-st.markdown(f"""
+render_html(f"""
 <div style="background: linear-gradient(135deg, {COLORS['ink']} 0%, #1a3530 100%);
             border-radius: 20px; padding: 2rem 2.2rem; color: white;
-            box-shadow: 0 4px 24px rgba(15,31,28,0.12);
-            position: relative; overflow: hidden;">
+            box-shadow: 0 4px 24px rgba(15,31,28,0.12); position: relative; overflow: hidden;">
     <div style="position: absolute; top: -40px; right: -40px; width: 200px; height: 200px;
-                background: radial-gradient(circle, rgba(10,110,78,0.4) 0%, transparent 70%);
-                border-radius: 50%;"></div>
+                background: radial-gradient(circle, rgba(10,110,78,0.4) 0%, transparent 70%); border-radius: 50%;"></div>
     <div style="position: relative;">
-        <div style="font-family: 'Geist Mono', monospace; font-size: 0.72rem;
-                    text-transform: uppercase; letter-spacing: 0.14em;
-                    color: {COLORS['accent_2']}; opacity: 0.7; margin-bottom: 0.4rem;">
-            Plan de pago · Tarjeta de crédito
+        <div style="font-family: 'Geist Mono', monospace; font-size: 0.72rem; text-transform: uppercase;
+                    letter-spacing: 0.14em; color: {COLORS['accent_2']}; opacity: 0.7; margin-bottom: 0.4rem;">
+            Tarjeta de crédito
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 2rem; align-items: flex-end; margin-bottom: 1.2rem;">
             <div>
-                <div style="font-family: 'Fraunces', serif; font-size: 2.5rem; font-weight: 500;
-                            line-height: 1; letter-spacing: -0.025em;">
-                    {fmt_q(info['saldo_actual'])}
+                <div style="font-family: 'Fraunces', serif; font-size: 2.5rem; font-weight: 500; line-height: 1; letter-spacing: -0.025em;">
+                    {fmt_q(saldo_card)}
                 </div>
-                <div style="font-size: 0.85rem; opacity: 0.7; margin-top: 0.4rem;">
-                    Saldo restante de {fmt_q(saldo_inicial)}
-                </div>
+                <div style="font-size: 0.85rem; opacity: 0.7; margin-top: 0.4rem;">{sub_saldo}</div>
             </div>
             <div style="margin-left: auto; text-align: right;">
-                <div style="font-family: 'Geist Mono', monospace; font-size: 0.7rem;
-                            text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6;">
-                    Avance
-                </div>
-                <div style="font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 500;">
-                    {avance:.1f}%
-                </div>
+                <div style="font-family: 'Geist Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6;">Avance</div>
+                <div style="font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 500;">{avance:.1f}%</div>
+                <div style="font-size: 0.72rem; opacity: 0.55;">{avance_lbl}</div>
             </div>
         </div>
         <div style="background: rgba(255,255,255,0.1); height: 6px; border-radius: 100px; overflow: hidden;">
-            <div style="background: {COLORS['accent']}; height: 100%;
-                        width: {min(avance, 100)}%; border-radius: 100px;
-                        transition: width 0.5s ease;"></div>
+            <div style="background: {COLORS['accent']}; height: 100%; width: {avance:.1f}%; border-radius: 100px;"></div>
         </div>
-        <div style="display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.82rem; opacity: 0.7; flex-wrap: wrap; gap: 0.5rem;">
-            <span>{info['meses_pagados']} de {len(plan)} cuotas pagadas</span>
-            {proximo_html}
+        <div style="display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.82rem; opacity: 0.75; flex-wrap: wrap; gap: 0.5rem;">
+            <span>{izq}</span><span>{der}</span>
         </div>
     </div>
 </div>
-""", unsafe_allow_html=True)
+""")
+
+if sit["hay_datos"] and (sit.get("saldo_mora") or 0) > 0:
+    st.markdown("<div style='height: 0.8rem'></div>", unsafe_allow_html=True)
+    alert("danger", f"Saldo en mora en la tarjeta: {fmt_q(sit['saldo_mora'])}",
+          "Pagalo antes de la fecha de pago para no generar interés moratorio ni gestión de cobro (Q168).")
 
 
 st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
@@ -194,7 +213,7 @@ with cA:
             bars_html += f"""
             <div style="margin-bottom: 0.85rem;">
                 <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 0.3rem;">
-                    <span style="color: var(--ink);">{row['categoria']}</span>
+                    <span style="color: var(--ink);">{esc(row['categoria'])}</span>
                     <span style="font-family: 'Geist Mono', monospace; color: var(--ink-soft);">{fmt_q(row['total'])} · {int(row['conteo'])}×</span>
                 </div>
                 <div style="background: var(--accent-2); height: 5px; border-radius: 100px; overflow: hidden;">
@@ -249,8 +268,6 @@ with cB:
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.markdown('<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow);">', unsafe_allow_html=True)
-
         top = egresos_cat.head(8)
         fig = go.Figure()
         fig.add_trace(go.Bar(
@@ -259,18 +276,19 @@ with cB:
             text=[fmt_q_short(v) for v in top["total"]],
             textposition="outside",
             textfont=dict(family="Geist Mono", size=11, color=COLORS["ink_soft"]),
+            cliponaxis=False,
             hovertemplate="<b>%{y}</b><br>Q%{x:,.2f}<extra></extra>",
         ))
         fig = style_plotly(fig)
         fig.update_layout(
             height=max(280, 38 * len(top) + 60),
             showlegend=False,
-            margin=dict(l=10, r=60, t=10, b=10),
+            margin=dict(l=10, r=70, t=10, b=10),
             yaxis=dict(categoryorder="total ascending", showgrid=False),
             xaxis=dict(showticklabels=False, showgrid=False),
         )
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
 
 st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
@@ -327,12 +345,12 @@ else:
             </div>
             <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: 500; color: var(--ink); font-size: 0.95rem; margin-bottom: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    {row['descripcion']}{hormiga_tag}
+                    {esc(row['descripcion'])}{hormiga_tag}
                 </div>
                 <div style="font-size: 0.8rem; color: var(--ink-mute); display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                    <span>{row['categoria']}</span>
+                    <span>{esc(row['categoria'])}</span>
                     <span>·</span>
-                    <span>{row['persona']}</span>
+                    <span>{esc(row['persona'])}</span>
                     <span>·</span>
                     <span>{fecha_str}</span>
                 </div>
