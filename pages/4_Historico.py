@@ -8,7 +8,7 @@ import plotly.express as px
 
 from helpers.sheets import get_transacciones
 from helpers.calc import historico_mensual
-from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html
+from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html, esc
 
 
 st.set_page_config(
@@ -52,6 +52,7 @@ if df.empty:
 
 n_meses = st.slider("Meses a comparar", min_value=2, max_value=12, value=6)
 hist = historico_mensual(df, n_meses=n_meses)
+hist_lbl = dict(zip(hist["año_mes"], hist["año_mes_str"])) if not hist.empty else {}
 
 if hist.empty:
     st.info("No hay datos suficientes para comparar.")
@@ -73,7 +74,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown('<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow);">', unsafe_allow_html=True)
 
 fig = go.Figure()
 fig.add_trace(go.Bar(
@@ -106,8 +106,8 @@ fig.update_layout(
     hovermode="x unified",
     yaxis=dict(tickprefix="Q", tickformat=",.0f"),
 )
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-st.markdown('</div>', unsafe_allow_html=True)
+with st.container(border=True):
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
 
 st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
@@ -171,15 +171,16 @@ st.markdown("""
 
 df_eg = df[df["tipo"] == "EGRESO"].copy()
 if not df_eg.empty:
-    df_eg["año_mes"] = df_eg["fecha"].dt.to_period("M").astype(str)
+    df_eg = df_eg.dropna(subset=["fecha"])
+    df_eg["año_mes"] = df_eg["fecha"].dt.to_period("M")
     pivot = df_eg.pivot_table(
         index="categoria", columns="año_mes",
         values="monto", aggfunc="sum", fill_value=0,
     )
     pivot = pivot.iloc[:, -n_meses:]
+    pivot.columns = [hist_lbl.get(c, str(c)) for c in pivot.columns]
     pivot = pivot.loc[pivot.sum(axis=1).sort_values(ascending=False).index]
 
-    st.markdown('<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow);">', unsafe_allow_html=True)
 
     fig2 = go.Figure(data=go.Heatmap(
         z=pivot.values, x=pivot.columns, y=pivot.index,
@@ -201,7 +202,7 @@ if not df_eg.empty:
         margin=dict(l=10, r=10, t=10, b=10),
         xaxis=dict(side="top"),
     )
-    st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.plotly_chart(fig2, width="stretch", config={"displayModeBar": False})
 else:
     st.info("No hay egresos registrados aún.")
