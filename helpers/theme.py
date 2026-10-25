@@ -512,7 +512,8 @@ def render_html(html: str):
     """
     import re
     # Eliminar saltos de línea con indentación que confunden a markdown
-    compact = re.sub(r'\n\s+', '', html)
+    # Cada salto de línea + sangría se vuelve UN espacio (no se pegan palabras entre líneas)
+    compact = re.sub(r'\s*\n\s*', ' ', html.strip())
     compact = re.sub(r'\s{2,}', ' ', compact)
     st.markdown(compact, unsafe_allow_html=True)
 
