@@ -2,13 +2,13 @@
 Registrar un nuevo movimiento — UX optimizada para celular.
 """
 import streamlit as st
-from datetime import date
 
 from helpers.sheets import (
     get_categorias_activas, add_transaccion,
     add_categoria, get_umbral_hormiga,
 )
-from helpers.theme import apply_theme, hero, fmt_q, COLORS
+from helpers.calc import hoy_gt
+from helpers.theme import apply_theme, hero, fmt_q, COLORS, esc
 
 
 st.set_page_config(
@@ -39,6 +39,43 @@ tipo = st.radio(
 st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
 
 
+# ---- Categoría (fuera del form para que "Crear nueva" aparezca al instante) ----
+st.markdown("**Categoría**")
+cats = get_categorias_activas(tipo=tipo)
+cats_options = cats + ["+ Crear nueva categoría..."]
+categoria_sel = st.selectbox("Categoría", cats_options, label_visibility="collapsed", key=f"cat_{tipo}")
+
+nueva_cat_input = None
+sub_tipo = None
+umbral_nueva = None
+if categoria_sel == "+ Crear nueva categoría...":
+    st.markdown("<div style='height: 0.4rem'></div>", unsafe_allow_html=True)
+    nueva_cat_input = st.text_input(
+        "Nombre de la nueva categoría",
+        placeholder="Veterinario, Restaurante X, etc.",
+    )
+    if tipo == "EGRESO":
+        cc1, cc2 = st.columns(2)
+        with cc1:
+            sub_tipo = st.radio(
+                "Tipo de gasto",
+                ["EGRESO_VARIABLE", "EGRESO_FIJO"],
+                horizontal=False,
+                format_func=lambda x: "Variable" if x == "EGRESO_VARIABLE" else "Fijo (mensual)",
+            )
+        with cc2:
+            if sub_tipo == "EGRESO_VARIABLE":
+                umbral_nueva = st.number_input(
+                    "Umbral hormiga (Q)",
+                    value=200.0, min_value=0.0, step=50.0,
+                    help="Gastos menores a esto se marcan como hormiga",
+                )
+    else:
+        sub_tipo = "INGRESO"
+
+
+st.markdown("<div style='height: 1rem'></div>", unsafe_allow_html=True)
+
 # ============ FORMULARIO ============
 with st.form("nuevo_movimiento", clear_on_submit=True):
     st.markdown(f"""
@@ -65,46 +102,12 @@ with st.form("nuevo_movimiento", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**Fecha**")
-        fecha = st.date_input("Fecha", value=date.today(), format="DD/MM/YYYY", label_visibility="collapsed")
+        fecha = st.date_input("Fecha", value=hoy_gt(), format="DD/MM/YYYY", label_visibility="collapsed")
     with col2:
         st.markdown("**Persona**")
         persona = st.selectbox("Persona", ["Pablo", "Sofi", "Familia"], label_visibility="collapsed")
 
     st.markdown("<div style='height: 0.7rem'></div>", unsafe_allow_html=True)
-
-    # ---- Fila 3: Categoría ----
-    st.markdown("**Categoría**")
-    cats = get_categorias_activas(tipo=tipo)
-    cats_options = cats + ["+ Crear nueva categoría..."]
-    categoria_sel = st.selectbox("Categoría", cats_options, label_visibility="collapsed")
-
-    nueva_cat_input = None
-    sub_tipo = None
-    umbral_nueva = None
-    if categoria_sel == "+ Crear nueva categoría...":
-        st.markdown("<div style='height: 0.4rem'></div>", unsafe_allow_html=True)
-        nueva_cat_input = st.text_input(
-            "Nombre de la nueva categoría",
-            placeholder="Veterinario, Restaurante X, etc.",
-        )
-        if tipo == "EGRESO":
-            cc1, cc2 = st.columns(2)
-            with cc1:
-                sub_tipo = st.radio(
-                    "Tipo de gasto",
-                    ["EGRESO_VARIABLE", "EGRESO_FIJO"],
-                    horizontal=False,
-                    format_func=lambda x: "Variable" if x == "EGRESO_VARIABLE" else "Fijo (mensual)",
-                )
-            with cc2:
-                if sub_tipo == "EGRESO_VARIABLE":
-                    umbral_nueva = st.number_input(
-                        "Umbral hormiga (Q)",
-                        value=200.0, min_value=0.0, step=50.0,
-                        help="Gastos menores a esto se marcan como hormiga",
-                    )
-        else:
-            sub_tipo = "INGRESO"
 
     st.markdown("<div style='height: 0.7rem'></div>", unsafe_allow_html=True)
 
@@ -122,7 +125,7 @@ with st.form("nuevo_movimiento", clear_on_submit=True):
     submitted = st.form_submit_button(
         "Guardar movimiento",
         type="primary",
-        use_container_width=True,
+        width="stretch",
     )
 
     if submitted:
@@ -177,7 +180,7 @@ with st.form("nuevo_movimiento", clear_on_submit=True):
                 </div>
                 <div style="color: var(--ink-soft); font-size: 0.95rem; margin-bottom: 0.5rem;">
                     <span style="font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 500; color: {signo_color};">{signo}{fmt_q(monto)}</span>
-                    en <b>{categoria_final}</b>{hormiga_badge}
+                    en <b>{esc(categoria_final)}</b>{hormiga_badge}
                 </div>
             </div>
             """, unsafe_allow_html=True)
