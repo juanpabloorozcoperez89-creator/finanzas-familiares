@@ -329,6 +329,39 @@ def apply_theme():
         }}
     }}
 
+    /* ============ Contenedores con borde (st.container(border=True)) ============ */
+    [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]),
+    div[data-testid="stVerticalBlock"][class*="border"] {{
+        background: var(--surface) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius) !important;
+        box-shadow: var(--shadow);
+    }}
+
+    /* ============ Tabs ============ */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 0.25rem;
+        border-bottom: 1px solid var(--border);
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        font-family: 'Geist', sans-serif !important;
+        font-weight: 500 !important;
+        padding: 0.6rem 1rem !important;
+    }}
+    .stTabs [aria-selected="true"] {{
+        color: var(--accent) !important;
+    }}
+    .stTabs [data-baseweb="tab-highlight"] {{
+        background-color: var(--accent) !important;
+    }}
+
+    /* ============ File uploader ============ */
+    [data-testid="stFileUploaderDropzone"] {{
+        background: var(--surface) !important;
+        border: 1px dashed var(--accent) !important;
+        border-radius: var(--radius) !important;
+    }}
+
     /* Quitar el botón "Deploy" y branding de Streamlit en el navbar */
     /* IMPORTANTE: NO ocultar [data-testid="stToolbar"] completo, solo ciertos hijos */
     [data-testid="stToolbar"] > div:nth-child(2),
@@ -362,6 +395,66 @@ def hero(eyebrow: str, title: str, subtitle: str = ""):
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
+
+
+def esc(v) -> str:
+    """Escapa texto del usuario antes de meterlo en HTML (evita que '<' o '&' rompan la página)."""
+    import html
+    return html.escape("" if v is None else str(v))
+
+
+def section(eyebrow: str, title: str, subtitle: str = ""):
+    """Encabezado de sección (eyebrow + h3 + bajada opcional)."""
+    sub = f'<p style="color:var(--ink-mute);font-size:0.9rem;margin:0.3rem 0 0;">{subtitle}</p>' if subtitle else ""
+    render_html(f"""
+    <div style="margin: 0 0 1rem;">
+        <div style="font-family:'Geist Mono',monospace;font-size:0.72rem;text-transform:uppercase;
+                    letter-spacing:0.14em;color:var(--accent);margin-bottom:0.4rem;">{eyebrow}</div>
+        <h3 style="margin:0;font-size:1.3rem;">{title}</h3>{sub}
+    </div>
+    """)
+
+
+def spacer(rem: float = 2.5):
+    st.markdown(f"<div style='height:{rem}rem'></div>", unsafe_allow_html=True)
+
+
+def alert(kind: str, title: str, body: str = ""):
+    """Aviso con estilo propio. kind: danger | warn | ok | info."""
+    pal = {
+        "danger": ("var(--danger)", "var(--danger-soft)", "⚠"),
+        "warn":   ("var(--warn)",   "var(--warn-soft)",   "!"),
+        "ok":     ("var(--accent)", "var(--accent-2)",    "✓"),
+        "info":   ("var(--ink-soft)", "#F2F1EC",          "i"),
+    }
+    color, bg, icon = pal.get(kind, pal["info"])
+    render_html(f"""
+    <div style="background:{bg};border:1px solid {color}33;border-left:3px solid {color};
+                border-radius:12px;padding:0.9rem 1.1rem;margin-bottom:0.7rem;display:flex;gap:0.8rem;">
+        <div style="width:22px;height:22px;border-radius:50%;background:{color};color:white;flex-shrink:0;
+                    display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;">{icon}</div>
+        <div><div style="font-weight:600;color:var(--ink);font-size:0.92rem;">{title}</div>
+        <div style="color:var(--ink-soft);font-size:0.86rem;margin-top:0.15rem;line-height:1.45;">{body}</div></div>
+    </div>
+    """)
+
+
+def kpi_row(items):
+    """Fila de KPIs compactos. items = [(label, valor_str, sub_str_opcional, color_opcional), ...]"""
+    cells = ""
+    for it in items:
+        label, value = it[0], it[1]
+        sub = it[2] if len(it) > 2 and it[2] else ""
+        color = it[3] if len(it) > 3 and it[3] else "var(--ink)"
+        sub_html = f'<div style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.25rem;">{sub}</div>' if sub else ""
+        cells += f"""
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;
+                    padding:1.1rem 1.25rem;box-shadow:var(--shadow);">
+            <div style="font-size:0.74rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.06em;font-weight:500;">{label}</div>
+            <div style="font-family:'Fraunces',serif;font-size:clamp(1.2rem,2.1vw,1.6rem);font-weight:500;color:{color};letter-spacing:-0.02em;margin-top:0.25rem;line-height:1.1;white-space:nowrap;">{value}</div>
+            {sub_html}
+        </div>"""
+    render_html(f'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.9rem;">{cells}</div>')
 
 
 def card_open(title: str = None, subtitle: str = None):
@@ -398,7 +491,8 @@ def fmt_q(v) -> str:
     import pandas as pd
     if v is None or (isinstance(v, float) and pd.isna(v)):
         return "—"
-    return f"Q{v:,.2f}"
+    v = float(v)
+    return f"−Q{abs(v):,.2f}" if v < 0 else f"Q{v:,.2f}"
 
 
 def fmt_q_short(v) -> str:
@@ -406,7 +500,8 @@ def fmt_q_short(v) -> str:
     import pandas as pd
     if v is None or (isinstance(v, float) and pd.isna(v)):
         return "—"
-    return f"Q{v:,.0f}"
+    v = float(v)
+    return f"−Q{abs(v):,.0f}" if v < 0 else f"Q{v:,.0f}"
 
 
 def render_html(html: str):
