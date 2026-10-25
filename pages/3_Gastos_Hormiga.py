@@ -5,9 +5,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-from helpers.sheets import get_transacciones
+from helpers.sheets import get_transacciones, get_config
 from helpers.calc import filtrar_mes, gastos_hormiga, mes_actual_dt, nombre_mes_es
-from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html
+from helpers.theme import apply_theme, hero, fmt_q, fmt_q_short, COLORS, style_plotly, render_html, esc
 
 
 st.set_page_config(
@@ -126,7 +126,6 @@ st.markdown("""
 
 cA, cB = st.columns([1, 1])
 with cA:
-    st.markdown('<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow);">', unsafe_allow_html=True)
     fig = go.Figure()
     fig.add_trace(go.Pie(
         labels=agrupado["categoria"], values=agrupado["total"],
@@ -148,8 +147,8 @@ with cA:
             showarrow=False,
         )],
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
 with cB:
     rows_html = '<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;">'
@@ -160,7 +159,7 @@ with cB:
         rows_html += f"""
         <div style="padding: 1rem 1.4rem; {border}">
             <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.4rem;">
-                <span style="font-weight: 500; color: var(--ink);">{row['categoria']}</span>
+                <span style="font-weight: 500; color: var(--ink);">{esc(row['categoria'])}</span>
                 <span style="font-family: 'Fraunces', serif; font-size: 1.1rem; font-weight: 500;">{fmt_q(row['total'])}</span>
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--ink-mute); margin-bottom: 0.4rem;">
@@ -180,7 +179,11 @@ st.markdown("<div style='height: 2.5rem'></div>", unsafe_allow_html=True)
 
 
 # ============ Insight de proyección anual ============
-cuotas_equivalentes = proyectado_anual / 5500
+try:
+    cuota_tc = float(get_config().get("pago_mensual_tarjeta", 5500) or 5500)
+except Exception:
+    cuota_tc = 5500.0
+cuotas_equivalentes = proyectado_anual / cuota_tc
 st.markdown(f"""
 <div style="background: linear-gradient(135deg, {COLORS['ink']} 0%, #1a3530 100%);
             border-radius: 20px; padding: 2rem; color: white;
@@ -195,7 +198,7 @@ st.markdown(f"""
         solo en gastos hormiga.
     </div>
     <div style="margin-top: 0.8rem; font-size: 0.95rem; opacity: 0.8;">
-        Equivale a <b>{cuotas_equivalentes:.1f} cuotas</b> de las que están pagando de la tarjeta.
+        Equivale a <b>{cuotas_equivalentes:.1f} cuotas</b> de {fmt_q_short(cuota_tc)} de la tarjeta.
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -231,10 +234,10 @@ for i, (_, row) in enumerate(hormigas_sorted.iterrows()):
         </div>
         <div style="flex: 1; min-width: 0;">
             <div style="font-weight: 500; color: var(--ink); font-size: 0.92rem; margin-bottom: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                {row['descripcion']}
+                {esc(row['descripcion'])}
             </div>
             <div style="font-size: 0.78rem; color: var(--ink-mute);">
-                {row['categoria']} · {row['persona']} · {fecha_str}
+                {esc(row['categoria'])} · {esc(row['persona'])} · {fecha_str}
             </div>
         </div>
         <div style="font-family: 'Fraunces', serif; font-size: 1.05rem; font-weight: 500; color: var(--ink); white-space: nowrap;">
