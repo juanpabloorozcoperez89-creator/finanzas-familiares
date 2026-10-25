@@ -50,6 +50,7 @@ try:
     sheet = client.open_by_key(sheet_id)
     st.success(f"Sheet abierto: **{sheet.title}**")
     st.write(f"URL: https://docs.google.com/spreadsheets/d/{sheet_id}/edit")
+    st.write(f"Zona horaria del sheet: `{sheet.timezone}` · Locale: `{sheet.locale}`")
 except gspread.exceptions.APIError as e:
     st.error(f"❌ ERROR DE API: {e}")
     if "PERMISSION_DENIED" in str(e) or "403" in str(e):
@@ -106,10 +107,12 @@ if faltantes:
     st.stop()
 else:
     st.success("Todas las pestañas requeridas existen.")
+if "Movimientos_Tarjeta" not in hojas_existentes:
+    st.info("La pestaña opcional `Movimientos_Tarjeta` aún no existe: se crea sola al importar el primer estado de cuenta.")
 
 # ============ CHECK 5: Lectura de datos ============
 st.subheader("✅ Check 5: Lectura de datos")
-for nombre in hojas_esperadas:
+for nombre in hojas_esperadas + [h for h in ["Movimientos_Tarjeta"] if h in hojas_existentes]:
     try:
         ws = sheet.worksheet(nombre)
         data = ws.get_all_records()
@@ -119,6 +122,15 @@ for nombre in hojas_esperadas:
                 st.json(data[:3])
     except Exception as e:
         st.error(f"❌ Error leyendo `{nombre}`: {type(e).__name__}: {e}")
+
+# ============ CHECK 6: Lector de estados de cuenta ============
+st.subheader("✅ Check 6: Librerías para leer estados de cuenta")
+for lib in ["pdfplumber", "xlrd", "openpyxl"]:
+    try:
+        __import__(lib)
+        st.write(f"✅ `{lib}` instalado")
+    except ImportError:
+        st.write(f"❌ `{lib}` no instalado — revisá requirements.txt")
 
 st.divider()
 st.success("🎉 **Si todos los checks pasaron, tu app debería funcionar correctamente.** Ve al Dashboard.")
